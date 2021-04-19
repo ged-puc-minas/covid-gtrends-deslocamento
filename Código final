@@ -1,0 +1,387 @@
+#if(!require(installr)) {
+#install.packages("installr"); require(installr)}
+#updateR() 
+
+## Limpar variaveis
+#rm(list = ls())
+
+
+# carregando as palavras chaves
+keyword = c ("teste COVID", "teste de COVID", "exame de COVID", "exame COVID", "PCR")
+#selecionado dos estado
+geo = c ("BR-MG", "BR-SP", "BR-RJ", "BR-CE", "BR-AM", "BR-PE", "BR-AC", "BR-RO", "BR-RR", "BR-PA", "BR-AP", "BR-MT", "BR-MS", "BR-GO", "BR-TO", "BR-MA", "BR-PI", "BR-RN", "BR-PB", "BR-AL", "BR-SE", "BR-BA", "BR-ES", "BR-PR", "BR-SC", "BR-RS")
+# selecionando a data
+time_span = "2020-03-01 2021-01-01" 
+
+buscaTudoF= data.frame()
+
+#install.packages("gtrendsR")
+library(gtrendsR)
+
+#rodando o gtrends 
+for (i in keyword){
+  for (n in geo){
+    print (i)
+    print (n)
+    buscaTudo = gtrends (keyword = i,
+                         geo = n,
+                         time = time_span,
+                         gprop = c("web", "news", "images", "froogle", "youtube"),
+                         low_search_volume = TRUE)
+    
+    buscaTudoF= rbind(buscaTudoF, buscaTudo$interest_over_time) }
+}
+
+colnames(buscaTudoF) = c("date","hits","keyword","state") #trocando nomes das colunas
+
+#install.packages("stringr")
+library(stringr)
+
+buscaTudoF = buscaTudoF[,-(5:7)]
+names(buscaTudoF)[4] = "state" 
+buscaTudoF$state = str_sub(buscaTudoF$state, start = 4)
+
+pc = data.frame()
+pct= dim.data.frame(dim(pc))
+
+
+#trocando as linhas das pc para colunas no df de palavras chaves
+for (k in keyword) {{
+  print (k)
+  pc = subset(buscaTudoF, keyword == k)
+  names(pc)[3] = k
+  names(pc)[2] = paste(k,sep="")
+}
+  pct = cbind.data.frame(pct, pc)
+}
+
+pct = pct[,c(2,3,5,7,11,15,19)]
+
+#somando as palavras chaves
+pct$`teste COVID`=pct$`teste COVID`+ pct$`teste de COVID`+pct$`exame de COVID`+pct$`exame COVID`+pct$PCR
+pct = pct [,c(1,2,3)] #excluindo colunas
+
+#remotes::install_github("liibre/coronabr", force = TRUE)
+library(coronabr)
+
+# carregando os dados do Ministerio da saude
+geo = c ("MG", "SP", "RJ", "CE", "AM", "PE", "AC", "RO", "RR", "PA", "AP", "MT", "MS", "GO", "TO", "MA", "PI", "RN", "PB", "AL", "SE", "BA", "ES", "PR", "SC", "RS") #selecionado dos estados
+dados_br <- get_corona_br(by_uf= TRUE, uf = geo, cidade = NULL)
+dados_br_sel2 = dados_br[dados_br$date <= as.Date(str_sub(time_span, start = 12)),-c(1,2,6,7,8,9,10,11,12,13,14,15)]
+
+
+#install.packages("dplyr")
+library(dplyr)
+
+junta = left_join(pct,dados_br_sel2, by = c("state","date"))
+junta$new_confirmed = junta$new_confirmed/junta$estimated_population #dividindo os casos pela populacao
+
+
+#1 semana
+#deslocando no tempo
+
+deslocar_linhas = function(vetor) {
+  temporario = vetor
+  temporario = temporario[-1]
+  
+  temporario = append(temporario, 0)
+  
+  return(temporario)
+}
+
+# rodando as regressao e graficos dos bancos KW e corona juntos
+#estado = todos
+
+zi= data.frame()
+zt1= data.frame()
+
+keyword = c ("teste COVID")
+
+
+for (i in geo){ 
+  for (j in keyword){
+    print ("i inicio")
+    print (i)
+    geoi= junta[junta$state == i,]
+    
+    geoi$new_confirmed[] = deslocar_linhas(geoi$new_confirmed[])
+   
+    geoi = head(geoi,-1) # removendo a ultima linha com 0
+    z=lm(geoi$new_confirmed[] ~ geoi[[j]], data=geoi)
+    
+    
+    #capturando a, pvalor de a, r2 e pvalor de r2 para cada geo 
+    a = summary(z)$coefficients[[2,1]]
+    pa = summary(z)$coefficients[[2,4]]
+    r=  summary(z)$adj.r.squared
+    f = summary(z)$fstatistic
+    pr = pf(f[1],f[2],f[3],lower.tail=F)
+    zi = c("new_confirmed",j,i,a,pa,r,pr) 
+    zii = t(zi)
+    
+    zt1 = rbind(zt1, zii)
+  }
+  
+  print("i final")
+  print (i)
+  print (a)
+}
+
+
+names(zt1) = c("variavel saida","palavra-chave","estado","a","pa","r","pr") #renomeando colunas
+View (zt1)
+
+
+#2 semanas
+#deslocando no tempo
+
+deslocar_linhas = function(vetor) {
+  temporario = vetor
+  temporario = temporario[-1]
+  temporario = temporario[-2]
+  
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  
+  return(temporario)
+}
+
+# rodando as regressao e graficos dos bancos KW e corona juntos
+#estado = todos
+
+zi= data.frame()
+zt2= data.frame()
+
+keyword = c ("teste COVID")
+
+
+for (i in geo){ 
+  for (j in keyword){
+    print ("i inicio")
+    print (i)
+    geoi= junta[junta$state == i,]
+    
+    geoi$new_confirmed[] = deslocar_linhas(geoi$new_confirmed[])
+    
+    geoi = head(geoi,-2) # removendo a ultima linha com 0
+    z=lm(geoi$new_confirmed[] ~ geoi[[j]], data=geoi)
+    
+    
+    #capturando a, pvalor de a, r2 e pvalor de r2 para cada geo 
+    a = summary(z)$coefficients[[2,1]]
+    pa = summary(z)$coefficients[[2,4]]
+    r=  summary(z)$adj.r.squared
+    f = summary(z)$fstatistic
+    pr = pf(f[1],f[2],f[3],lower.tail=F)
+    zi = c("new_confirmed",j,i,a,pa,r,pr) 
+    zii = t(zi)
+    
+    zt2 = rbind(zt2, zii)
+  }
+  
+  print("i final")
+  print (i)
+  print (a)
+}
+
+
+names(zt2) = c("variavel saida","palavra-chave","estado","a","pa","r","pr") #renomeando colunas
+View (zt2)
+
+#3 semanas
+#deslocando no tempo
+
+deslocar_linhas = function(vetor) {
+  temporario = vetor
+  temporario = temporario[-1]
+  temporario = temporario[-2]
+  temporario = temporario[-3]
+  
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  
+  return(temporario)
+}
+
+# rodando as regressao e graficos dos bancos KW e corona juntos
+#estado = todos
+
+zi= data.frame()
+zt3= data.frame()
+
+keyword = c ("teste COVID")
+
+
+for (i in geo){ 
+  for (j in keyword){
+    print ("i inicio")
+    print (i)
+    geoi= junta[junta$state == i,]
+    
+    geoi$new_confirmed[] = deslocar_linhas(geoi$new_confirmed[])
+    
+    geoi = head(geoi,-3) # removendo a ultima linha com 0
+    z=lm(geoi$new_confirmed[] ~ geoi[[j]], data=geoi)
+    
+    
+    #capturando a, pvalor de a, r2 e pvalor de r2 para cada geo 
+    a = summary(z)$coefficients[[2,1]]
+    pa = summary(z)$coefficients[[2,4]]
+    r=  summary(z)$adj.r.squared
+    f = summary(z)$fstatistic
+    pr = pf(f[1],f[2],f[3],lower.tail=F)
+    zi = c("new_confirmed",j,i,a,pa,r,pr) 
+    zii = t(zi)
+    
+    zt3 = rbind(zt3, zii)
+  }
+  
+  print("i final")
+  print (i)
+  print (a)
+}
+
+
+names(zt3) = c("variavel saida","palavra-chave","estado","a","pa","r","pr") #renomeando colunas
+View (zt3)
+
+
+#4 semanas
+#deslocando no tempo
+
+deslocar_linhas = function(vetor) {
+  temporario = vetor
+  temporario = temporario[-1]
+  temporario = temporario[-2]
+  temporario = temporario[-3]
+  temporario = temporario[-4]
+  
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  
+  return(temporario)
+}
+
+# rodando as regressao e graficos dos bancos KW e corona juntos
+#estado = todos
+
+zi= data.frame()
+zt4= data.frame()
+
+keyword = c ("teste COVID")
+
+
+for (i in geo){ 
+  for (j in keyword){
+    print ("i inicio")
+    print (i)
+    geoi= junta[junta$state == i,]
+    
+    geoi$new_confirmed[] = deslocar_linhas(geoi$new_confirmed[])
+    
+    geoi = head(geoi,-4) # removendo a ultima linha com 0
+    z=lm(geoi$new_confirmed[] ~ geoi[[j]], data=geoi)
+    
+    
+    #capturando a, pvalor de a, r2 e pvalor de r2 para cada geo 
+    a = summary(z)$coefficients[[2,1]]
+    pa = summary(z)$coefficients[[2,4]]
+    r=  summary(z)$adj.r.squared
+    f = summary(z)$fstatistic
+    pr = pf(f[1],f[2],f[3],lower.tail=F)
+    zi = c("new_confirmed",j,i,a,pa,r,pr) 
+    zii = t(zi)
+    
+    zt4 = rbind(zt4, zii)
+  }
+  
+  print("i final")
+  print (i)
+  print (a)
+}
+
+
+names(zt4) = c("variavel saida","palavra-chave","estado","a","pa","r","pr") #renomeando colunas
+View (zt4)
+
+#5 semanas
+#deslocando no tempo
+
+deslocar_linhas = function(vetor) {
+  temporario = vetor
+  temporario = temporario[-1]
+  temporario = temporario[-2]
+  temporario = temporario[-3]
+  temporario = temporario[-4]
+  temporario = temporario[-5]
+  
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  temporario = append(temporario, 0)
+  
+  return(temporario)
+}
+
+# rodando as regressao e graficos dos bancos KW e corona juntos
+#estado = todos
+
+zi= data.frame()
+zt5= data.frame()
+
+keyword = c ("teste COVID")
+
+
+for (i in geo){ 
+  for (j in keyword){
+    print ("i inicio")
+    print (i)
+    geoi= junta[junta$state == i,]
+    
+    geoi$new_confirmed[] = deslocar_linhas(geoi$new_confirmed[])
+    
+    geoi = head(geoi,-5) # removendo a ultima linha com 0
+    z=lm(geoi$new_confirmed[] ~ geoi[[j]], data=geoi)
+    
+    
+    #capturando a, pvalor de a, r2 e pvalor de r2 para cada geo 
+    a = summary(z)$coefficients[[2,1]]
+    pa = summary(z)$coefficients[[2,4]]
+    r=  summary(z)$adj.r.squared
+    f = summary(z)$fstatistic
+    pr = pf(f[1],f[2],f[3],lower.tail=F)
+    zi = c("new_confirmed",j,i,a,pa,r,pr) 
+    zii = t(zi)
+    
+    zt5 = rbind(zt5, zii)
+  }
+  
+  print("i final")
+  print (i)
+  print (a)
+}
+
+
+names(zt5) = c("variavel saida","palavra-chave","estado","a","pa","r","pr") #renomeando colunas
+View (zt5)
+
+#exportanto a tabela para o excel
+
+#setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
+#write.csv(zt1, "resultados1.csv", row.names = FALSE)
+
+#setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
+#write.csv(zt2, "resultados2.csv", row.names = FALSE)
+
+#setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
+#write.csv(zt3, "resultados3.csv", row.names = FALSE)
+
+#setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
+#write.csv(zt4, "resultados4.csv", row.names = FALSE)
+
+#setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
+#write.csv(zt5, "resultados5.csv", row.names = FALSE)
