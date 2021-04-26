@@ -11,7 +11,7 @@ keyword = c ("teste COVID", "teste de COVID", "exame de COVID", "exame COVID", "
 #selecionado dos estado
 geo = c ("BR-MG", "BR-SP", "BR-RJ", "BR-CE", "BR-AM", "BR-PE", "BR-AC", "BR-RO", "BR-RR", "BR-PA", "BR-AP", "BR-MT", "BR-MS", "BR-GO", "BR-TO", "BR-MA", "BR-PI", "BR-RN", "BR-PB", "BR-AL", "BR-SE", "BR-BA", "BR-ES", "BR-PR", "BR-SC", "BR-RS")
 # selecionando a data
-time_span = "2020-03-01 2021-01-01" 
+time_span = "2020-03-21 2020-12-15" 
 
 buscaTudoF= data.frame()
 
@@ -67,10 +67,11 @@ library(coronabr)
 # carregando os dados do Ministerio da saude
 geo = c ("MG", "SP", "RJ", "CE", "AM", "PE", "AC", "RO", "RR", "PA", "AP", "MT", "MS", "GO", "TO", "MA", "PI", "RN", "PB", "AL", "SE", "BA", "ES", "PR", "SC", "RS") #selecionado dos estados
 dados_br <- get_corona_br(by_uf= TRUE, uf = geo, cidade = NULL)
-dados_br_sel2 = dados_br[dados_br$date <= as.Date(str_sub(time_span, start = 12)),-c(1,2,6,7,8,9,10,11,12,13,14,15)]
+dados_br_sel2 = dados_br[dados_br$date <= as.Date(str_sub(time_span, start = 12)),-c(1,2,6,7,8,9,10,11,12,13,14,15, 18)]
 
 
 #install.packages("dplyr")
+library(dplyr)
 library(dplyr)
 
 junta = left_join(pct,dados_br_sel2, by = c("state","date"))
@@ -372,16 +373,16 @@ View (zt5)
 #exportanto a tabela para o excel
 
 #setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
-#write.csv(zt1, "resultados1.csv", row.names = FALSE)
+#write.csv2(zt1, "resultados1.csv", row.names = FALSE)
 
 #setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
-#write.csv(zt2, "resultados2.csv", row.names = FALSE)
+#write.csv2(zt2, "resultados2.csv", row.names = FALSE)
 
 #setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
-#write.csv(zt3, "resultados3.csv", row.names = FALSE)
+#write.csv2(zt3, "resultados3.csv", row.names = FALSE)
 
 #setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
-#write.csv(zt4, "resultados4.csv", row.names = FALSE)
+#write.csv2(zt4, "resultados4.csv", row.names = FALSE)
 
 #setwd("C:/Users/acerr/OneDrive/Documentos/Carol/GED/") 
-#write.csv(zt5, "resultados5.csv", row.names = FALSE)
+#write.csv2(zt5, "resultados5.csv", row.names = FALSE)
